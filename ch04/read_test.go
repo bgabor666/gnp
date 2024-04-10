@@ -1,10 +1,10 @@
 package main
 
 import (
-	"crypto/rand"
-	"io"
-	"net"
-	"testing"
+    "crypto/rand"
+    "io"
+    "net"
+    "testing"
 )
 
 func TestReadIntoBuffer(t *testing.T) {
