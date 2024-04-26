@@ -210,3 +210,53 @@ func (data *Data) UnmarshalBinary(packet []byte) error {
 
     return nil
 }
+
+
+// Acknowledgment packet structure
+//
+// # 2 bytes #    2 bytes   #
+// ##########################
+// # OpCode  # Block number #
+// ##########################
+
+type Ack uint16
+
+func (ack Ack) MarshalBinary() ([]byte, error) {
+    // operation code + block number
+    packetSize := 2 + 2
+
+    buf := new(bytes.Buffer)
+    buf.Grow(packetSize)
+
+    // write operation code
+    err := binary.Write(buf, binary.BigEndian, OpAck)
+    if err != nil {
+	return nil, err
+    }
+
+    // write block number
+    err = binary.Write(buf, binary.BigEndian, ack)
+    if err != nil {
+	return nil, err
+    }
+
+    return buf.Bytes(), nil
+}
+
+func (ack *Ack) UnmarshalBinary(packet []byte) error {
+    var opcode OpCode
+
+    packetReader := bytes.NewReader(packet)
+
+    // read operation code
+    err := binary.Read(packetReader, binary.BigEndian, &opcode)
+    if err != nil {
+	return err
+    }
+
+    if opcode != OpAck {
+	return errors.New("invalid ACK")
+    }
+
+    return binary.Read(packetReader, binary.BigEndian, ack)
+}
