@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
 	"strings"
 )
 
@@ -146,6 +147,66 @@ func (req *ReadReq) UnmarshalBinary(packet []byte) error {
     if actual != "octet" {
 	return errors.New("only binary transfers supported")
     }
+
+    return nil
+}
+
+
+// Data packet structure
+//
+// # 2 bytes #    2 bytes   # n bytes #
+// ####################################
+// # OpCode  # Block number # Payload #
+// ####################################
+
+type Data struct {
+    Block uint16
+    Payload io.Reader
+}
+
+func (data *Data) MarshalBinary() ([]byte, error) {
+    buf := new(bytes.Buffer)
+    buf.Grow(DatagramSize)
+
+    // block numbers increment from 1
+    data.Block++
+
+    // write operation code
+    err := binary.Write(buf, binary.BigEndian, OpData)
+    if err != nil {
+	return nil, err
+    }
+
+    // write up to BlockSize worth of bytes
+    _, err = io.CopyN(buf, data.Payload, BlockSize)
+    if err != nil && err != io.EOF {
+	return nil, err
+    }
+
+    return buf.Bytes(), nil
+}
+
+func (data *Data) UnmarshalBinary(packet []byte) error {
+    if packetLength := len(packet); packetLength < 4 || packetLength > DatagramSize {
+	return errors.New("invalid DATA")
+    }
+
+    var opcode OpCode
+
+    // read the OpCode
+    err := binary.Read(bytes.NewReader(packet[:2]), binary.BigEndian, &opcode)
+    if err != nil || opcode != OpData {
+	return errors.New("invalid DATA")
+    }
+
+    // read the block number
+    err = binary.Read(bytes.NewReader(packet[2:4]), binary.BigEndian, &data.Block)
+    if err != nil {
+	return errors.New("invalid DATA")
+    }
+
+    // read the remaining bytes to payload
+    data.Payload = bytes.NewBuffer(packet[4:])
 
     return nil
 }
