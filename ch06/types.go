@@ -177,6 +177,13 @@ func (data *Data) MarshalBinary() ([]byte, error) {
 	return nil, err
     }
 
+
+    // write block number
+    err = binary.Write(buf, binary.BigEndian, data.Block)
+    if err != nil {
+	return nil, err
+    }
+
     // write up to BlockSize worth of bytes
     _, err = io.CopyN(buf, data.Payload, BlockSize)
     if err != nil && err != io.EOF {
